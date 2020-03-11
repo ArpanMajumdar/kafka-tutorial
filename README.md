@@ -32,12 +32,23 @@ Keys are used when messages are to be written to partitions in a more controlled
 - A partition is a single log. 
 - Messages are written to it in an append-only fashion, and are read in order from beginning to end. 
 - Partitions are also the way that Kafka provides redundancy and scalability. Each partition can be hosted on a different server.
+- Order of messages is guaranteed only within a partition(not across partitions).
+- Once data is written in a partition it cannot be changed.   
 
 ### Producer
 - Producers create new messages.
 - A message will be produced to a specific topic.
+- Producers already know to which broker and partition to write to. 
 - By default, the producer does not care what partition a specific message is written to and will balance messages over all partitions of a topic evenly. 
 - In some cases, the producer will direct messages to specific partitions. This is typically done using the message key and a partitioner that will generate a hash of the key and map it to a specific partition. This assures that all messages produced with a given key will get written to the same partition. 
+- In case of broker failure, producers will automatically recover.
+- Producers can choose to recieve acknowledgement of data writes.
+    - **acks=0** : Producer won't wait for acknowledgement(possible data loss).
+    - **acks=1** : Producer will wait for leader acknowledgement(limited data loss).
+    - **acks="all"** : Leader + replicas acknowledgement(no data loss).
+- Producers can choose to send key with the message.
+- If key is null, data is sent to each partition in a round robbin fashion.
+- If key is present, then all messages having key will always go to the same partition.
 
 ### Consumer
 - Consumers read messages.
@@ -45,12 +56,34 @@ Keys are used when messages are to be written to partitions in a more controlled
 - The consumer keeps track of which messages it has already consumed by keeping track of the **offset** of messages.
 - The **offset** is another bit of metadata—an integer value that continually increases—that Kafka adds to each message as it is produced. Each message in a given partition has a unique offset.
 - By storing the offset of the last consumed message for each partition, either in Zookeeper or in Kafka itself, a consumer can stop and restart without losing its place.
+- An offset doesn't has any meaning on its own without partition.
 
 ### Consumer group
 - Consumers work as part of a consumer group, which is one or more consumers that work together to consume a topic. 
 - The group assures that each partition is only consumed by one member.
 - The mapping of a consumer to a partition is often called ownership of the partition by the consumer.
 - In this way, consumers can horizontally scale to consume topics with a large number of messages. Additionally, if a single consumer fails, the remaining members of the group will rebalance the partitions being consumed to take over for the missing member. 
+- If you have more consumers than the number of partitions, some will be inactive.
+
+### Consumer offsets
+- Kafka stores the offsets at which a consumer group has been reading.
+- The commited offsets live in a kafka topic named `__consumer_offsets`.
+- When a consumer in a group has processed data, it should be committing offsets.
+- If a consumer dies, it will be able to read from where it left off, thanks to the committed offsets.
+
+### Delivery semantics for consumers
+- Consumers choose when to commit offsets.
+- There are 3 types of delivery semantics:
+    1. **At most once**
+        - Offsets are committed as soon as the message is received.
+        - If the processing goes wrong, message will be lost (it won't be read again).
+    2. **Atleast once**
+        - Offsets are committed after message is processed.
+        - If processing goes wrong message will be read again.
+        - This can result in duplicate processing of messages. That's why we should make sure that processing of messages is idempotent (i.e. processing the messages again won't impact your system).
+    3. **Exactly once**
+        - Can be achieved for kafka to kafka workflows using Kafka Streams API.
+        - For kafka to external system workflow use an idempotent consumer.
 
 ### Broker
 - A single Kafka server is called a broker.
@@ -59,11 +92,19 @@ Keys are used when messages are to be written to partitions in a more controlled
 
 ## Kafka cluster
 - Kafka brokers are designed to operate as part of a cluster. 
+- Each broker is identified by it's ID (integer).
 - Within a cluster of brokers, one broker will also function as the cluster controller (elected automatically from the live members of the cluster). 
 - The controller is responsible for administrative operations, including assigning partitions to brokers and monitoring for broker failures. 
 -  A partition is owned by a single broker in the cluster, and that broker is called the leader of the partition. 
 - A partition may be assigned to multiple brokers, which will result in the partition being replicated. This provides redundancy of messages in the partition, such that another broker can take over leadership if there is a broker failure.
 - However, all consumers and producers operating on that partition must connect to the leader.
+
+### Replication factor
+- A partition is replicated across the kafka cluster and the number of copies each partition has is given by its replication factor.
+- At any time only one broker can be a leader of a given partition.
+- Only that leader can receive and serve data for that partition.
+- Other brokers will just synchronise the data.
+- Therefore, each partition has one leader and multiple ISRs(in-sync replicas).
 
 ### Retention policy
 - Retention is the durable storage of messages for some period of time.
@@ -74,3 +115,49 @@ Keys are used when messages are to be written to partitions in a more controlled
 - When working with multiple datacenters in particular, it is often required that messages be copied between them. 
 - The replication mechanisms within the Kafka clusters are designed only to work within a single cluster, not between multiple clusters.
 - MirrorMaker is used for this purpose. At its core, MirrorMaker is simply a Kafka consumer and producer, linked together with a queue. Messages are consumed from one Kafka cluster and produced for another. 
+
+
+## Useful kafka commands
+
+To start kafka, follow the steps.
+
+1. Download and extract Kafka binary from [here](https://kafka.apache.org/downloads).
+2. Start zookeeper
+
+``` bash
+bin/zookeeper-server-start.sh config/zookeeper.properties
+```
+
+3. Start kafka server
+``` bash
+bin/kafka-server-start.sh config/server.properties
+```
+
+### Create a topic
+``` bash
+bin/kafka-topics.sh --create \
+--bootstrap-server localhost:9092 \
+--replication-factor 1 \
+--partitions 1 \
+--topic test
+```
+
+### List all topics
+``` bash
+bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+```
+
+### Produce records to a topic via console producer
+``` bash
+bin/kafka-console-producer.sh \
+--broker-list localhost:9092 \
+--topic test
+```
+
+### Consume records from a topic via console consumer
+``` bash
+bin/kafka-console-consumer.sh \
+--bootstrap-server localhost:9092 \
+--topic test \
+--from-beginning
+```
