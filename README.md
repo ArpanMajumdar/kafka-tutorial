@@ -90,7 +90,7 @@ Keys are used when messages are to be written to partitions in a more controlled
 - The broker receives messages from producers, assigns offsets to them, and commits the messages to storage on disk.
 - It also services consumers, responding to fetch requests for partitions and responding with the messages that have been committed to disk.
 
-## Kafka cluster
+### Kafka cluster
 - Kafka brokers are designed to operate as part of a cluster. 
 - Each broker is identified by it's ID (integer).
 - Within a cluster of brokers, one broker will also function as the cluster controller (elected automatically from the live members of the cluster). 
@@ -99,12 +99,27 @@ Keys are used when messages are to be written to partitions in a more controlled
 - A partition may be assigned to multiple brokers, which will result in the partition being replicated. This provides redundancy of messages in the partition, such that another broker can take over leadership if there is a broker failure.
 - However, all consumers and producers operating on that partition must connect to the leader.
 
+### Kafka broker discovery
+- Every kafka broker is also called a bootstrap server.
+- That means you only need to connect to one broker and you will be connected to the entire cluster.
+- Each broker knows about all brokers, topics and partitions.
+
+### Zookeeper
+- Zookeeper manages brokers.
+- It helps in performing leader election of partitions.
+- It sends notifications to kafka in case of changes.
+- Kafka can't work without zookeeper.
+- By design, it operates with an odd number of servers (generally 3,5,7 ...)
+- It has a leader(handles writes) and rest of them are followers(handles reads).
+- Zookeeper doesn't store consumer offsets after Kafka > 0.10
+
 ### Replication factor
 - A partition is replicated across the kafka cluster and the number of copies each partition has is given by its replication factor.
 - At any time only one broker can be a leader of a given partition.
 - Only that leader can receive and serve data for that partition.
 - Other brokers will just synchronise the data.
 - Therefore, each partition has one leader and multiple ISRs(in-sync replicas).
+- With a replication factor of N, producers and consumers can tolerate up to N-1 brokers being down.
 
 ### Retention policy
 - Retention is the durable storage of messages for some period of time.
@@ -147,6 +162,20 @@ bin/kafka-topics.sh --create \
 bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
 ```
 
+### Describe a topic
+``` bash
+bin/kafka-topics.sh --bootstrap-server localhost:9092 \
+--topic test \
+--describe
+```
+
+### Delete a topic
+``` bash
+bin/kafka-topics.sh --bootstrap-server localhost:9092 \
+--topic test \
+--delete
+```
+
 ### Produce records to a topic via console producer
 ``` bash
 bin/kafka-console-producer.sh \
@@ -161,3 +190,54 @@ bin/kafka-console-consumer.sh \
 --topic test \
 --from-beginning
 ```
+
+### Consume records from a topic via console consumer as a part of consumer group
+``` bash
+bin/kafka-console-consumer.sh \
+--bootstrap-server localhost:9092 \
+--topic test1 \
+--group test1-cg-1
+```
+
+### Describe a consumer group
+``` bash
+bin/kafka-consumer-groups.sh \
+--bootstrap-server localhost:9092 \
+--group test1-cg-1 \
+--describe
+```
+
+We can see an output like this which shows all the partitions and their respective lag.
+
+```
+GROUP           TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+test2-cg-2      test2           1          3               3               0               -               -               -
+test2-cg-2      test2           0          5               5               0               -               -               -
+test2-cg-2      test2           2          3               3               0               -               -               -
+
+```
+
+### Resetting offsets
+
+There are several strategies that can be used to reset offsets.
+
+1. **to-datetime**
+2. **by-period**
+3. **to-earliest** - Shifts the current offset to the beginning of topic
+4. **to-latest**
+5. **shift-by** - Shifts the current offsets in all partitions by specified number of offsets, use positive number to shift offsets forward and negative to shift them backward.
+6. **from-file**
+7. **to-current** - Shifts the current offset to the end of topic
+
+It is always good to perform a dry run before actually resetting the offsets. This can be done using flag `--dry-run` instead of `--execute` flag.
+
+``` bash
+bin/kafka-consumer-groups.sh \
+--bootstrap-server localhost:9092 \
+--group test1-cg-1 \
+--topic test1 \     
+--reset-offsets \
+--to-earliest \ # Use any one of the 7 strategies
+--execute # Execute same command using dry-run first
+```
+
