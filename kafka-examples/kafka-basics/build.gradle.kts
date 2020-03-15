@@ -11,6 +11,7 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
+    implementation(group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.3.4")
     implementation(group = "org.apache.kafka", name = "kafka-clients", version = "2.4.1")
     implementation(group = "org.slf4j", name = "slf4j-simple", version = "1.7.30")
 }

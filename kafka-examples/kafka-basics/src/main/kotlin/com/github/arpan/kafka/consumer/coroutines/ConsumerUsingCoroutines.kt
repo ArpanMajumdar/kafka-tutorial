@@ -1,27 +1,56 @@
-package com.github.arpan.kafka.consumer
+package com.github.arpan.kafka.consumer.coroutines
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.common.errors.WakeupException
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.CountDownLatch
 
-fun main() {
+fun main() = runBlocking {
+    val logger = LoggerFactory.getLogger("ConsumerUsingCoroutines")
+
     // Consumer config
     val bootstrapServer = "localhost:9092"
     val consumerGroup = "kafka-consumer-demo-app-cg-1"
     val topic = "test2"
 
-    val kafkaConsumerConfig = ConsumerDemo.getKafkaConfig(bootstrapServer, consumerGroup)
+    val kafkaConsumerConfig = ConsumerDemo.getKafkaConfig(
+        bootstrapServer,
+        consumerGroup
+    )
     val consumer = ConsumerDemo.createConsumer(kafkaConsumerConfig)
     ConsumerDemo.subscribeToTopics(consumer, topic)
 
-    while (true) {
-        ConsumerDemo.poll(consumer, Duration.ofMillis(500))
+    val countDownLatch = CountDownLatch(1)
+    val job = launch(Dispatchers.Default) {
+        try {
+            while (true) {
+                ConsumerDemo.poll(consumer, Duration.ofMillis(500))
+            }
+        } catch (exception: WakeupException) {
+            logger.info("Received shutdown signal")
+        } finally {
+            logger.info("Exiting application ...")
+            consumer.close()
+            countDownLatch.countDown()
+            logger.info("Application has exited")
+        }
     }
-}
 
+    Runtime.getRuntime().addShutdownHook(Thread {
+        logger.info("Caught shutdown hook")
+        consumer.wakeup()
+        countDownLatch.await()
+    })
+
+    job.join()
+}
 
 object ConsumerDemo {
     private val logger = LoggerFactory.getLogger(ConsumerDemo::class.java)
