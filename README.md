@@ -50,6 +50,34 @@ Keys are used when messages are to be written to partitions in a more controlled
 - If key is null, data is sent to each partition in a round robbin fashion.
 - If key is present, then all messages having key will always go to the same partition.
 
+#### Producer retries
+- In case of transient failures, developers are expected to handle failures otherwise the data will be lost.
+- Example of transient failure
+  - `NotEnoughReplicasException`
+- There is a `retries` setting which defaults to 0 but can be set to a high number. e.g. - `Integer.MAX_VALUE`.
+- In case of failure, by default there is a chance that messages will be sent out of order (if batch has failed to be sent).
+- If you rely on key based ordering, this can be an issue.
+- For this, you can set the setting `max.in.flight.requests.per.connection` which controls how many produce requests are made in parallel. Default setting is 5 but should be set to 1 if ordering of messages is necesssary (may impact throughput).
+
+#### Idempotent producer
+A producer can introduce duplicate messages due to network errors.
+Here's how it can happen.
+
+1. Producer makes a produce request to broker.
+2. Broker commits the message and sends an ack.
+3. Due to network error ack doesn't reaches the producer.
+4. Since, producer didn't get ack, it retries the message.
+5. If the network error goes away, the message is produced again and this leads to a duplicate record.
+
+Idempotent producers are great to guarantee a stable and safe pipeline.
+1. Producer sends an ID every time it produces a message.
+2. If broker sees a duplicate ID, it doesn't commit the message again but it sends ack to the producer.
+3. This prevents the message from being duplicated.
+
+For a safe producer
+1. Use idempotent producer, set `enable.idempotence` property of Kafka Producer to `true` => `acks="all"`, `retries=Integer.MAX_INT`, `max.in.flight.requests.per.connection=5` at producer level.
+2. Set `min.insync.replicas=2` at broker/topic level.
+
 ### Consumer
 - Consumers read messages.
 - The consumer subscribes to one or more topics and reads the messages **in the order in which they were produced**.

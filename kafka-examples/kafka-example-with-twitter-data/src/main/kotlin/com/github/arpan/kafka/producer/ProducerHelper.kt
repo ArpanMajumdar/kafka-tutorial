@@ -16,6 +16,12 @@ object ProducerFactory {
             setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer)
             setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java.name)
             setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java.name)
+
+            // Enable idempotence
+            setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true")
+            setProperty(ProducerConfig.ACKS_CONFIG, "all")
+            setProperty(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5")
+            setProperty(ProducerConfig.RETRIES_CONFIG, Int.MAX_VALUE.toString())
         }
         return KafkaProducer<String, String>(kafkaConfig)
     }
