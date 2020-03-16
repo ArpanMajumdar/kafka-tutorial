@@ -6,6 +6,7 @@ import com.twitter.hbc.core.HttpHosts
 import com.twitter.hbc.core.endpoint.StatusesFilterEndpoint
 import com.twitter.hbc.core.processor.StringDelimitedProcessor
 import com.twitter.hbc.httpclient.auth.OAuth1
+import org.apache.kafka.clients.producer.KafkaProducer
 import org.slf4j.LoggerFactory
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.TimeUnit
@@ -43,7 +44,7 @@ class TwitterClient(private val msgQueue: BlockingQueue<String>,
 
     fun stop() = client.stop()
 
-    fun pollForDuration(timeout: Long, timeUnit: TimeUnit) {
+    fun pollAndSendToKafka(producer: KafkaProducer<String, String>, timeout: Long, timeUnit: TimeUnit) {
         while (!client.isDone) {
             val message = try {
                 msgQueue.poll(timeout, timeUnit)

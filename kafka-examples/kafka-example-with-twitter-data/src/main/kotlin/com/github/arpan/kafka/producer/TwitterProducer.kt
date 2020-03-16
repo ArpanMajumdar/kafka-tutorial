@@ -17,8 +17,12 @@ fun main() {
     val twitterAuth = TwitterAuth(consumerKey, consumerSecret, accessToken, accessTokenSecret)
     val terms = listOf("corona")
 
+    val bootstrapServer = "localhost:9092"
+    val producer = ProducerFactory.create(bootstrapServer)
+    val timeout = 5L
+    val timeUnit = TimeUnit.SECONDS
     TwitterClient(msgQueue, twitterAuth, terms).apply {
         connect()
-        pollForDuration(5, TimeUnit.SECONDS)
+        pollAndSendToKafka(producer, timeout, timeUnit)
     }
 }
