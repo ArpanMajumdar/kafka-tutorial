@@ -8,6 +8,16 @@ import java.util.concurrent.TimeUnit
 
 fun main() = runBlocking {
 
+    /**
+     * Create `twitter-tweets` topic if not exists by running this command
+     *
+     * bin/kafka-topics.sh --create \
+            --bootstrap-server localhost:9092 \
+            --replication-factor 1 \
+            --partitions 6 \
+            --topic twitter-tweets
+     */
+
     val logger = LoggerFactory.getLogger("com.github.arpan.kafka.producer.TwitterProducer")
 
     val consumerKey: String = System.getenv("CONSUMER_KEY")

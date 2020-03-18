@@ -78,6 +78,16 @@ For a safe producer
 1. Use idempotent producer, set `enable.idempotence` property of Kafka Producer to `true` => `acks="all"`, `retries=Integer.MAX_INT`, `max.in.flight.requests.per.connection=5` at producer level.
 2. Set `min.insync.replicas=2` at broker/topic level.
 
+#### Producer default partitioner and how keys are hashed
+- By default, keys are hashed using the `murmur2` algorithm.
+- It is most most likely preferred not to override the behaviour of the partitioner but it is possible to do so using **partition.class** config.
+- The exact formula for the partition is
+``` java
+targetPartition = Utils.abs(Utils.murmur2(record.key)) % numPartitions
+```
+- This means that same key will go to the same partition.
+- This also means that adding partitions after creation of topic can completely alter the formula. Therefore, unless absolutely necessary partitions should not be added after the topics are created. 
+
 ### Consumer
 - Consumers read messages.
 - The consumer subscribes to one or more topics and reads the messages **in the order in which they were produced**.
@@ -180,6 +190,30 @@ For a safe producer
 - `snappy` and `lz4` compression have optimal speed / compression ration. `gzip` has a higher compression ratio but less speed.
 - Always use compression in production especiallyu if you have a high throughput.
 - Consider tweaking `linger.ms` and `batch.size` to have bigger batches and therefore more compression and higher throughput.
+
+### Linger ms and batch size
+- By default kafka tries to send records as soon as possible.
+- It will have upto 5 requests in flight, meaning upto 5 messages can be individually sent at the same time.
+- After this, if more messages have to be sent while others are in flight, Kafka is smart and it will start batching them while they wait to send all that at once.
+- Smart batching allows Kafka to increase throghput while maintaining very low latency.
+- Batches have a higher compression ratio, so better efficiency.
+
+#### linger.ms
+- It is the number of milliseconds a producer is willing to wait before sending a batch out. (default 0 i.e. send as soon as possible)
+- By introducing some lag (e.g. - linger.ms=5), we increase the chances of messages being sent together in batch.
+- So at the expense of introducing a small delay, we can increase the throughput, compression and efficiency of our producer.
+- If a batch is full (controlled by **batch.size**) before the end of the `linger.ms` time period, it will be sent to Kafka right away.
+
+#### batch.size
+- Maximum number of bytes that will be included in a batch. (default is 16KB)
+- Increasing batch size to something like 32KB or 64KB can help increasing the compression, throghput and efficiency of requests.
+- Any message that is bigger than the batch size will not be batched.
+- A batch is allocated per partition, so make sure that don't set it to a too high number.
+- You can monitor average batch size metrics using Kafka Producer metrics.
+
+### max.block.ms and buffer.memory
+- If the producer produces faster than the broker can take, the records will be buffered in memory.
+- Default buffer memory is 32MB
 
 ## Useful kafka commands
 

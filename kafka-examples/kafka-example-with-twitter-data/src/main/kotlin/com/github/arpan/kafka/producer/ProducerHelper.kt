@@ -22,6 +22,11 @@ object ProducerFactory {
             setProperty(ProducerConfig.ACKS_CONFIG, "all")
             setProperty(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5")
             setProperty(ProducerConfig.RETRIES_CONFIG, Int.MAX_VALUE.toString())
+
+            // High throughput producer at the expense of latency and CPU usage
+            setProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip")
+            setProperty(ProducerConfig.LINGER_MS_CONFIG, "20")
+            setProperty(ProducerConfig.BATCH_SIZE_CONFIG, "${64*1024}") // 64KB
         }
         return KafkaProducer<String, String>(kafkaConfig)
     }
