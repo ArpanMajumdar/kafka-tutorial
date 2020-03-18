@@ -159,6 +159,27 @@ For a safe producer
 - The replication mechanisms within the Kafka clusters are designed only to work within a single cluster, not between multiple clusters.
 - MirrorMaker is used for this purpose. At its core, MirrorMaker is simply a Kafka consumer and producer, linked together with a queue. Messages are consumed from one Kafka cluster and produced for another. 
 
+### Message compression
+- Producer generally send data that is text based like JSON.
+- In this case, it is important to apply compression to the producer.
+- Compression is enabled at producer level and doesn't require any configuration change in brokers or in consumers.
+- Here are the allowed compression types:
+  1. none
+  2. gzip
+  3. lz4
+  4. snappy
+- Compression is more effective the bigger the batch of message being sent to kafka.
+- Compression has following advantages
+  - Much smaller producer request size
+  - Faster to transfer data over network => Less latency
+  - Better throughput
+  - Better disk utilization in kafka (stored messages are smaller)
+- Disadvantages
+  - Producers must commit come CPU cycles for compression.
+  - Same case with consumers for decompression.
+- `snappy` and `lz4` compression have optimal speed / compression ration. `gzip` has a higher compression ratio but less speed.
+- Always use compression in production especiallyu if you have a high throughput.
+- Consider tweaking `linger.ms` and `batch.size` to have bigger batches and therefore more compression and higher throughput.
 
 ## Useful kafka commands
 
