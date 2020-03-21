@@ -211,9 +211,15 @@ targetPartition = Utils.abs(Utils.murmur2(record.key)) % numPartitions
 - A batch is allocated per partition, so make sure that don't set it to a too high number.
 - You can monitor average batch size metrics using Kafka Producer metrics.
 
-### max.block.ms and buffer.memory
+### max.block.ms
 - If the producer produces faster than the broker can take, the records will be buffered in memory.
 - Default buffer memory is 32MB
+
+### buffer.memory (default: 60000 ms)
+- The time the `producer.send()` will block until thrwoing an exception. Exceptions are generally thrown when
+  1. Producer has filled up its buffer
+  2. The broker is not accepting new data
+  3. 60 seconds have lapsed. 
 
 ## Useful kafka commands
 

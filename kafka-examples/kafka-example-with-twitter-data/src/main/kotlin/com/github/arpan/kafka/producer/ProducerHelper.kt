@@ -1,10 +1,6 @@
 package com.github.arpan.kafka.producer
 
-import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.clients.producer.Producer
-import org.apache.kafka.clients.producer.ProducerConfig
-import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.kafka.clients.producer.*
 import org.apache.kafka.common.serialization.StringSerializer
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -26,7 +22,7 @@ object ProducerFactory {
             // High throughput producer at the expense of latency and CPU usage
             setProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip")
             setProperty(ProducerConfig.LINGER_MS_CONFIG, "20")
-            setProperty(ProducerConfig.BATCH_SIZE_CONFIG, "${64*1024}") // 64KB
+            setProperty(ProducerConfig.BATCH_SIZE_CONFIG, "${64 * 1024}") // 64KB
         }
         return KafkaProducer<String, String>(kafkaConfig)
     }
@@ -36,7 +32,7 @@ object ProducerHelper {
     private val logger = LoggerFactory.getLogger(ProducerHelper::class.java)
 
     fun sendRecord(producer: Producer<String, String>, topic: String, key: String? = null, message: String):
-        Future<RecordMetadata> {
+            Future<RecordMetadata> {
         val record = if (key == null) ProducerRecord(topic, message)
         else ProducerRecord(topic, key, message)
         return producer.send(record) { metadata, exception: Exception? ->
