@@ -1,4 +1,4 @@
-version: '2.2'
+version: '3.2'
 services:
   es01:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.6.1
@@ -56,6 +56,26 @@ services:
       - data03:/usr/share/elasticsearch/data
     networks:
       - elastic
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - 2181:2181
+  kafka:
+    image: wurstmeister/kafka:2.12-2.4.1
+    container_name: kafka
+    ports:
+      - 9092:9092
+    environment:
+      HOSTNAME_COMMAND: "docker info | grep ^Name: | cut -d' ' -f 2"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://:10092,OUTSIDE://_{HOSTNAME_COMMAND}:9092
+      KAFKA_LISTENERS: INSIDE://:10092,OUTSIDE://:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_CREATE_TOPICS: "twitter-tweets:6:1"
+    depends_on:
+      - "zookeeper"
 
 volumes:
   data01:
