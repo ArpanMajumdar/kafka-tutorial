@@ -1,5 +1,7 @@
 package com.github.arpan.kafka.producer
 
+import com.github.arpan.kafka.client.TwitterAuth
+import com.github.arpan.kafka.client.TwitterClient
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
@@ -30,7 +32,12 @@ fun main() = runBlocking {
         ?: throw IllegalArgumentException("ACCESS_TOKEN_SECRET is required.")
 
     val msgQueue = LinkedBlockingQueue<String>(1000)
-    val twitterAuth = TwitterAuth(consumerKey, consumerSecret, accessToken, accessTokenSecret)
+    val twitterAuth = TwitterAuth(
+        consumerKey,
+        consumerSecret,
+        accessToken,
+        accessTokenSecret
+    )
     val terms = listOf("corona")
 
     val bootstrapServer = "localhost:9092"

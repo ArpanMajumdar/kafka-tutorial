@@ -1,5 +1,6 @@
-package com.github.arpan.kafka.producer
+package com.github.arpan.kafka.client
 
+import com.github.arpan.kafka.producer.ProducerHelper
 import com.twitter.hbc.ClientBuilder
 import com.twitter.hbc.core.Constants
 import com.twitter.hbc.core.HttpHosts
@@ -64,7 +65,11 @@ class TwitterClient(
             }
 
             if (message.isNotBlank()) {
-                ProducerHelper.sendRecord(producer = producer, topic = topic, message = message)
+                ProducerHelper.sendRecord(
+                    producer = producer,
+                    topic = topic,
+                    message = message
+                )
             }
         }
     }
