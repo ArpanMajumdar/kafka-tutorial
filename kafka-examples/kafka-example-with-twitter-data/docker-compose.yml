@@ -67,13 +67,11 @@ services:
     ports:
       - 9092:9092
     environment:
-      HOSTNAME_COMMAND: "docker info | grep ^Name: | cut -d' ' -f 2"
+      KAFKA_ADVERTISED_HOST_NAME: 172.17.0.1 # Can be found by command `ip a | grep docker`
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: INSIDE://:10092,OUTSIDE://_{HOSTNAME_COMMAND}:9092
-      KAFKA_LISTENERS: INSIDE://:10092,OUTSIDE://:9092
-      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
       KAFKA_CREATE_TOPICS: "twitter-tweets:6:1"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - "zookeeper"
 

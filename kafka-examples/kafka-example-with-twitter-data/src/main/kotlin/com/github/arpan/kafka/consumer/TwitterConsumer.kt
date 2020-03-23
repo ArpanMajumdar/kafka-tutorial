@@ -10,6 +10,19 @@ import org.slf4j.LoggerFactory
 import java.time.Duration
 
 fun main() = runBlocking {
+    /**
+     * If while running, you receive the following error:
+     * Limit of total fields [1000] in index [twitter] has been exceeded
+     *
+     * To solve this increase the index size to a large value (like 10000)
+     *
+     * curl --location --request PUT 'localhost:9200/twitter/_settings' \
+        --header 'Content-Type: application/json' \
+        --data-raw '{
+        "index.mapping.total_fields.limit": 10000
+        }'
+     */
+
     val logger = LoggerFactory.getLogger("com.github.arpan.kafka.consumer.TwitterConsumer")
 
     // ElasticSearch details
@@ -33,6 +46,7 @@ fun main() = runBlocking {
             logger.info("Received shutdown signal")
         } finally {
             logger.info("Exiting application ...")
+            esClient.close()
             kafkaConsumerHelper.close()
             logger.info("Application has exited")
         }
@@ -50,4 +64,6 @@ fun main() = runBlocking {
             logger.info("ES client closed.")
         }
     })
+
+    job.join()
 }
