@@ -13,6 +13,7 @@ import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.xcontent.XContentType
 import org.slf4j.LoggerFactory
+import java.io.IOException
 
 data class ElasticSearchAuth(
         val hostName: String,
@@ -53,16 +54,20 @@ class TwitterElasticSearchClient(private val elasticSearchAuth: ElasticSearchAut
 
     private fun index(indexRequest: IndexRequest): IndexResponse = esClient.index(indexRequest, RequestOptions.DEFAULT)
 
-    private fun createIndex(index: String, message: String): String {
-        val indexRequest = IndexRequest(index).source(message, XContentType.JSON)
-        val indexResponse = index(indexRequest)
-        return indexResponse.id
+    private fun createIndex(index: String, id: String, message: String) {
+        val indexRequest = IndexRequest(index).id(id).source(message, XContentType.JSON)
+        index(indexRequest)
     }
 
     fun dumpKafkaRecordsToEs(index: String, records: ConsumerRecords<String, String>) {
         records.forEach { record ->
-            val id = createIndex(index, record.value())
-            logger.info(getLogMessageFromConsumerRecord(record, id))
+            val id = record.key()
+            try {
+                createIndex(index, id, record.value())
+                logger.info(getLogMessageFromConsumerRecord(record, id))
+            } catch (exception: IOException) {
+                logger.error("Error indexing record with ID: $id :", exception)
+            }
         }
     }
 
