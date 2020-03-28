@@ -170,6 +170,45 @@ Here are some settings that we can use to change poll behaviour.
   }
   ```
 
+### Consumer offset reset behaviour
+If consumer somehow loses offsets, then offset reset behaviour kicks in. The behaviour of the consumer is to then use
+- **auto.offset.reset.config=earliest** - will read data from beginning of the log
+- **auto.offset.reset.config=latest** - will read the latest messages from the log
+- **auto.offset.reset.config=none** - will throw exception if no offset is found
+
+Additionally, consumer offsets can be lost if :
+- Consumer hasn't read any new data in 1 day (Kafka < 2.0>)
+- Consumer hasn't read any new data in 7 days (Kafka > 2.0>)
+- This setting can be controlled by the broker setting `offset.retention.minutes`.
+
+#### For production
+- Set proper data retention period and offset retention period.
+- Ensure auto offset reset behaviour is what you want or expect.
+- Use replay capability in case of unexpected behaviour.
+
+#### To replay data for a consumer group
+- Take all consumers from a specific group down.
+- Use `kafka-consumer-groups` command to set offset to what you want.
+- Restart consumers
+
+### Controling consumer liveliness
+- Consumers ina group talk to a Consumer Groups Coordinator
+- To detect consumers that are **down** there is a **heartbeat** mechanism and there is a **poll** mechanism.
+- To avoid issues, consumers are encouraged to process data fast and poll more often.
+- Here are some settings that can be used to control consumer liveliness
+  - **session.timeout.ms** (default 10s)
+    - Heartbeats are sent periodicallyto the broker
+    - If no heartbeat is sent during that period, the consumer is cosidered dead.
+    - This setting can be set lower to have faster consumer rebalances.
+  - **heartbeat.interval.ms** (default 3s)
+    - This controls how often to send heartbeats.
+    - Usually set to 1/3rd of **session.timeout.ms**.
+
+### Consumer poll thread
+- **max.poll.interval.ms** (default 5m)
+  - Maximum amount of time between 2 poll calls before declaring a consumer dead.
+  - This is particularly relevant of big data frameworks like Spark in case the processing takes time.
+
 ### Broker
 - A single Kafka server is called a broker.
 - The broker receives messages from producers, assigns offsets to them, and commits the messages to storage on disk.
