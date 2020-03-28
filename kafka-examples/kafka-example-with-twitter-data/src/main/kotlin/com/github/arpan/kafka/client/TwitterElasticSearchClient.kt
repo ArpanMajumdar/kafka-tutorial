@@ -6,6 +6,8 @@ import org.apache.http.auth.UsernamePasswordCredentials
 import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecords
+import org.apache.kafka.common.protocol.types.Field
+import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.action.index.IndexResponse
 import org.elasticsearch.client.RequestOptions
@@ -17,6 +19,7 @@ import java.io.IOException
 
 data class ElasticSearchAuth(
         val hostName: String,
+        val isAuthenticated: Boolean = false,
         val userName: String = "",
         val password: String = ""
 )
@@ -29,8 +32,7 @@ class TwitterElasticSearchClient(private val elasticSearchAuth: ElasticSearchAut
 
     private fun create(): RestHighLevelClient {
         val credentialsProvider: BasicCredentialsProvider? =
-                if (elasticSearchAuth.userName.isNotBlank() &&
-                        elasticSearchAuth.password.isNotBlank()) {
+                if (elasticSearchAuth.isAuthenticated) {
                     BasicCredentialsProvider().apply {
                         setCredentials(
                                 AuthScope.ANY,
@@ -39,10 +41,10 @@ class TwitterElasticSearchClient(private val elasticSearchAuth: ElasticSearchAut
                     }
                 } else null
 
-        val httpHost = if (credentialsProvider != null) HttpHost(elasticSearchAuth.hostName, 443, "https")
+        val httpHost = if (elasticSearchAuth.isAuthenticated) HttpHost(elasticSearchAuth.hostName, 443, "https")
         else HttpHost(elasticSearchAuth.hostName, 9200, "http")
 
-        val restClientBuilder = if (credentialsProvider != null) {
+        val restClientBuilder = if (elasticSearchAuth.isAuthenticated) {
             RestClient.builder(httpHost)
                     .setHttpClientConfigCallback { httpClientBuilder ->
                         httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider)
@@ -52,28 +54,33 @@ class TwitterElasticSearchClient(private val elasticSearchAuth: ElasticSearchAut
         return RestHighLevelClient(restClientBuilder)
     }
 
-    private fun index(indexRequest: IndexRequest): IndexResponse = esClient.index(indexRequest, RequestOptions.DEFAULT)
-
-    private fun createIndex(index: String, id: String, message: String) {
-        val indexRequest = IndexRequest(index).id(id).source(message, XContentType.JSON)
-        index(indexRequest)
+    fun dumpKafkaRecordsToEs(index: String, records: ConsumerRecords<String, String>) {
+        val bulkRequest = createBulkRequest(index, records)
+        val bulkResponse = esClient.bulk(bulkRequest, RequestOptions.DEFAULT)
+        bulkResponse.forEach { bulkItemResponse ->
+            logger.info("Indexed record with ID: ${bulkItemResponse.id} at index ${bulkItemResponse.index}")
+        }
     }
 
-    fun dumpKafkaRecordsToEs(index: String, records: ConsumerRecords<String, String>) {
+    private fun createRequest(index: String, id: String, message: String): IndexRequest =
+            IndexRequest(index).id(id).source(message, XContentType.JSON)
+
+    private fun createBulkRequest(index: String, records: ConsumerRecords<String, String>): BulkRequest {
+        val bulkRequest = BulkRequest()
+
         records.forEach { record ->
             val id = record.key()
+            val message = record.value()
             try {
-                createIndex(index, id, record.value())
-                logger.info(getLogMessageFromConsumerRecord(record, id))
+                logger.info("Received record from Topic: ${record.topic()} from Partition: ${record.partition()} and " +
+                        "Offset: ${record.offset()} at Timestamp: ${record.timestamp()}")
+                bulkRequest.add(createRequest(index, id, message))
             } catch (exception: IOException) {
                 logger.error("Error indexing record with ID: $id :", exception)
             }
         }
+        return bulkRequest
     }
 
     fun close() = esClient.close()
-
-    private fun getLogMessageFromConsumerRecord(record: ConsumerRecord<String, String>, index: String) =
-            "Received record from Topic ${record.topic()} from Partition: ${record.partition()} and " +
-                    "Offset: ${record.offset()} at Timestamp: ${record.timestamp()} and saved to ES at index $index"
 }

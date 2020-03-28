@@ -123,6 +123,53 @@ targetPartition = Utils.abs(Utils.murmur2(record.key)) % numPartitions
         - Can be achieved for kafka to kafka workflows using Kafka Streams API.
         - For kafka to external system workflow use an idempotent consumer.
 
+### Consumer poll behaviour
+- Kafka consumers have a poll model.
+- This allows consumers to control where and how fast in the log they want to consume, and gives the ability to replay events.
+- The broker either returns data immediately or returns empty after timeout.
+
+Here are some settings that we can use to change poll behaviour.
+
+#### fetch.min.bytes (default 1)
+- Controls how much data you want to pull atleast on each request.
+- Helps improving throughput and decreasing requests at the cost of latency.
+
+#### max.poll.records (default 500)
+- Controls how many records to receive per poll request.
+- Increase if your records are very small and you have a lot of available RAM.
+
+#### max.partitions.fetch.bytes (default 1MB)
+- Maximum data returned by broker per partition.
+- If you read from many partitions, you will need a lot of memory.
+
+#### fetch.max.bytes (default 50MB)
+- Maximum data returned for each fetch request (covers multiple partitions).
+- The consumer performs multiple fetches in parallel.
+
+### Consumer offset commit strategies
+- There are 2 most common patterns for commiting offsets in a consumer application.
+  
+1. **enable.auto.commit=true** and synchronous processing of batches.
+   - With auto-commit, offsets will be committed automatically for you at regular intervals (**auto.commit.interval.ms** default 5000ms) every time you call poll.
+  ``` java
+  while(true){
+    List<Records> batch = consumer.poll(Duration.ofMillis(100));
+    doSomethingSynchrounous(batch);
+  }
+  ```
+
+2. **enable.auto.commit=false** and manual commit of offsets.
+   - You control when you commit offsets and what's the condition for commiting them. e.g. - accumulating the records into a buffer and then flushing the buffer to a database and thenn committing the offsets.
+  ``` java
+  while(true){
+    batch += consumer.poll(100)
+    if(isReady(batch)){
+      doSomethingSynchronous(batch)
+      consumer.commitSync()
+    }
+  }
+  ```
+
 ### Broker
 - A single Kafka server is called a broker.
 - The broker receives messages from producers, assigns offsets to them, and commits the messages to storage on disk.
