@@ -1,4 +1,4 @@
-# kafka-tutorial
+# Kafka 
 
 Apache Kafka is a publish/subscribe messaging system often described as a “distributed commit log” or more recently as a “distributing streaming platform.”
 
@@ -416,3 +416,27 @@ bin/kafka-consumer-groups.sh \
 --execute # Execute same command using dry-run first
 ```
 
+# Kafka connect
+
+## Why kafka connect and streams?
+- There are generally 4 common Kafka use cases
+  1. source => kafka (producer API) Kafka connect source
+  2. kafka => kafka (producer, consumer API) Kafka streams 
+  3. kafka => sink (consumer API) Kafka connect sink
+  4. kafka => app (consumer API)
+- It is used to simplify getting data into and out of Kafka
+- Simply transforming data within Kafka without relying on external libs.
+- Programmers generally want to import data from same sources.
+  - Databases (Postgres, Cassandra, DynamoDB, MongoDB)
+  - Search engines (ElasticSearch, Solr)
+  - Apps (Twitter)
+- Programmers always want to store data in same sinks.
+  - Databases (S3, Postgres, Mongo, Cassandra)
+  - Search engines (Elastic search)
+  - HDFS 
+- Kafka connect provides
+  - Source connectors to get data from common data sources
+  - Sink connectors to publish data in common data stores
+- Makes it easy to get data quickly and reliably to Kafka
+- Reusable code
+- 

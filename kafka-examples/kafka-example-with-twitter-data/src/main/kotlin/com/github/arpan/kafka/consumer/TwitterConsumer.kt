@@ -33,7 +33,7 @@ fun main() = runBlocking {
     val esClient = TwitterElasticSearchClient(ElasticSearchAuth(hostName = esHostName))
 
     // Kafka details
-    val bootstrapServer = "localhost:9092"
+    val bootstrapServer = "localhost:9092" 
     val topic = "twitter-tweets"
     val kafkaConsumerHelper = KafkaConsumerHelper(bootstrapServer, topic)
     val consumer = kafkaConsumerHelper.consumer
